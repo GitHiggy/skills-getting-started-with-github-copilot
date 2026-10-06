@@ -12,6 +12,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Clear loading message
       activitiesList.innerHTML = "";
+      while (activitySelect.options.length > 1) {
+        activitySelect.remove(1);
+      }
 
       // Populate activities list
       Object.entries(activities).forEach(([name, details]) => {
@@ -53,7 +56,59 @@ document.addEventListener("DOMContentLoaded", () => {
 
           details.participants.forEach((email) => {
             const participant = document.createElement("li");
-            participant.textContent = email;
+            const participantEmail = document.createElement("span");
+            participantEmail.className = "participant-email";
+            participantEmail.textContent = email;
+
+            const unregisterButton = document.createElement("button");
+            unregisterButton.type = "button";
+            unregisterButton.className = "unregister-button";
+            unregisterButton.setAttribute("aria-label", `Unregister ${email}`);
+            unregisterButton.title = `Unregister ${email}`;
+
+            const deleteIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            deleteIcon.setAttribute("viewBox", "0 0 24 24");
+            deleteIcon.setAttribute("aria-hidden", "true");
+            deleteIcon.setAttribute("focusable", "false");
+            const deletePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            deletePath.setAttribute(
+              "d",
+              "M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m4 4v7m6-7v7"
+            );
+            deletePath.setAttribute("stroke", "currentColor");
+            deletePath.setAttribute("stroke-width", "2");
+            deletePath.setAttribute("stroke-linecap", "round");
+            deletePath.setAttribute("stroke-linejoin", "round");
+            deleteIcon.appendChild(deletePath);
+            unregisterButton.appendChild(deleteIcon);
+            unregisterButton.addEventListener("click", async () => {
+              try {
+                const response = await fetch(
+                  `/activities/${encodeURIComponent(name)}/signup?email=${encodeURIComponent(email)}`,
+                  { method: "DELETE" }
+                );
+                const result = await response.json();
+
+                if (!response.ok) {
+                  throw new Error(result.detail || "An error occurred");
+                }
+
+                await fetchActivities();
+                messageDiv.textContent = result.message;
+                messageDiv.className = "success";
+                messageDiv.classList.remove("hidden");
+                setTimeout(() => {
+                  messageDiv.classList.add("hidden");
+                }, 5000);
+              } catch (error) {
+                messageDiv.textContent = error.message || "Failed to unregister. Please try again.";
+                messageDiv.className = "error";
+                messageDiv.classList.remove("hidden");
+                console.error("Error unregistering:", error);
+              }
+            });
+
+            participant.append(participantEmail, unregisterButton);
             participantsList.appendChild(participant);
           });
 
@@ -99,6 +154,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const result = await response.json();
 
       if (response.ok) {
+        await fetchActivities();
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
         signupForm.reset();
